@@ -1,60 +1,164 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Responsive Phaser Crossword — larger tiles & stacked UI</title>
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <style>
-      /* Page layout */
-      body { margin:0; font-family:Inter,Arial,sans-serif; background:#071322; color:#e6eef6; }
-      .wrap { display:flex; gap:14px; padding:16px; align-items:flex-start; flex-wrap:wrap; justify-content:center; }
-      /* Game container determines canvas width */
-      #game { background:linear-gradient(180deg,#06121a,#03202a); padding:12px; border-radius:8px; box-sizing:border-box; max-width:960px; width:100%; }
-      #game canvas { width:100% !important; height:auto !important; display:block; }
-      /* UI column */
-      #ui { width:360px; min-width:260px; max-width:38%; box-sizing:border-box; }
+    <title>Responsive Crossword — Phaser</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-      /* On small screens, stack UI below the grid for a better mobile layout */
-      @media (max-width:920px) {
-        .wrap { flex-direction:column; align-items:center; }
-        #ui { width:92%; max-width:760px; margin-top:12px; }
-        #game { max-width:92%; }
+    <style>
+      /* ----------- GLOBAL LAYOUT & COLORS ----------- */
+      body {
+        margin: 0;
+        font-family: Inter, Arial, sans-serif;
+        background: #071322;
+        color: #e6eef6;
+        overflow-x: hidden;
       }
 
-      /* Clues / controls styling */
-      .panel { background:#071724; padding:12px; border-radius:8px; }
-      ol { padding-left:18px; margin:8px 0; color:#9aa6b2; }
-      li { margin:6px 0; cursor:pointer; }
-      li.active { color:#fff; background:rgba(255,216,107,0.06); padding:4px; border-radius:4px; }
-      .controls { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
-      .controls button { background:#0b1320; border:1px solid rgba(255,255,255,0.04); color:#cbd5e1; padding:8px 10px; border-radius:6px; cursor:pointer; }
-      .hint { margin-top:8px; color:#9aa6b2; font-size:13px; }
-      .continue-btn { display:none; background:linear-gradient(90deg,#4ade80,#16a34a); color:#fff; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; margin-top:12px; }
-      .continue-btn.fade-in { animation: fadeInUp .28s ease forwards; }
-      @keyframes fadeInUp { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none;} }
+      /* Flex layout: crossword grid + UI */
+      .wrap {
+        display: flex;
+        gap: 14px;
+        padding: 16px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      /* Game container */
+      #game {
+        background: linear-gradient(180deg, #06121a, #03202a);
+        padding: 12px;
+        border-radius: 8px;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        overflow: hidden; /* prevent tiny overflow */
+      }
+
+      /* Force the Phaser canvas to fit properly */
+      #game canvas {
+        max-width: 100% !important;
+        width: 100% !important;
+        height: auto !important;
+        display: block;
+      }
+
+      /* Right panel for clues */
+      #ui {
+        width: 360px;
+        min-width: 260px;
+        background: #071724;
+        padding: 12px;
+        border-radius: 8px;
+      }
+
+      h2 {
+        margin: 0 0 8px 0;
+      }
+
+      ol {
+        padding-left: 18px;
+        margin: 8px 0;
+        color: #9aa6b2;
+      }
+
+      li {
+        margin: 6px 0;
+        cursor: pointer;
+      }
+
+      li.active {
+        color: #fff;
+        background: rgba(255, 216, 107, 0.06);
+        padding: 4px;
+        border-radius: 4px;
+      }
+
+      /* Simple button */
+      button {
+        background: #0b1320;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        color: #cbd5e1;
+        padding: 8px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      /* Continue button */
+      .continue-btn {
+        display: none;
+        background: linear-gradient(90deg, #4ade80, #16a34a);
+        color: #fff;
+        border: none;
+        padding: 12px 24px;
+        font-size: 1rem;
+        font-weight: 600;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        margin-top: 16px;
+        width: 100%;
+      }
+
+      .continue-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 10px rgba(74, 222, 128, 0.4);
+      }
+
+      .hint {
+        margin-top: 8px;
+        color: #9aa6b2;
+        font-size: 13px;
+      }
+
+      /* Responsive stacking */
+      @media (max-width: 920px) {
+        .wrap {
+          flex-direction: column;
+          align-items: center;
+        }
+
+        #ui {
+          width: 92%;
+          max-width: 760px;
+          margin-top: 12px;
+        }
+
+        #game {
+          max-width: 92%;
+        }
+      }
     </style>
   </head>
+
   <body>
     <div class="wrap">
-      <div id="game" aria-label="crossword game container"></div>
+      <div id="game"></div>
 
       <div id="ui">
-        <h2 style="margin:0 0 8px 0">Crossword</h2>
-        <div class="panel">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div><strong>Across</strong><ol id="acrossList"></ol></div>
-            <div><strong>Down</strong><ol id="downList"></ol></div>
+        <h2>Crossword</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
+          <div>
+            <strong>Across</strong>
+            <ol id="acrossList"></ol>
           </div>
-
-          <div class="controls">
-            <button id="toggleDir">Toggle Dir (Space)</button>
+          <div>
+            <strong>Down</strong>
+            <ol id="downList"></ol>
           </div>
-
-          <div id="msg" style="height:20px;margin-top:8px;color:#a6f0b3"></div>
-          <div class="hint">Tap a cell, type letters (A–Z). Arrow keys move. Space toggles across/down. Words auto-validate when completely filled.</div>
-
-          <button id="nextBtn" class="continue-btn" aria-hidden="true">Continue</button>
         </div>
+
+        <div style="margin-top: 8px">
+          <button id="toggleDir">Toggle Dir (Space)</button>
+        </div>
+
+        <div class="hint">
+          Tap a cell, type letters (A–Z). Arrow keys move. Space toggles
+          across/down. Words auto-validate when completely filled.
+        </div>
+
+        <button id="nextBtn" class="continue-btn">Continue</button>
       </div>
     </div>
 
@@ -62,14 +166,11 @@
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 
     <script>
-      /*
-       Responsive crossword with:
-         - min tile size increased for phones (36px)
-         - UI stacked below grid on narrow screens
-         - slightly larger inner padding to avoid clipping on some Android browsers
-      */
+      /* ===============================
+         GAME DATA AND PUZZLE CONFIG
+         =============================== */
 
-      // puzzle data (unchanged)
+      // Crossword grid (10x10)
       const solutionGrid = [
         "ENCRYPT###",
         "#####E####",
@@ -80,53 +181,54 @@
         "##D##V##O#",
         "#HACKER#J#",
         "##T#####A#",
-        "##A#####N#"
+        "##A#####N#",
       ];
 
+      // Across clues
       const acrossClues = {
-        1: { r:0,c:0,len:7, clue:"Turn data into unreadable form.", answer:"ENCRYPT" },
-        2: { r:2,c:0,len:4, clue:"Distributed network attack (abbr.).", answer:"DDOS" },
-        3: { r:4,c:2,len:7, clue:"Opposite of encrypt.", answer:"DECRYPT" },
-        4: { r:7,c:1,len:6, clue:"Someone who breaks into systems.", answer:"HACKER" },
+        1: { r: 0, c: 0, len: 7, clue: "Turn data into unreadable form.", answer: "ENCRYPT" },
+        2: { r: 2, c: 0, len: 4, clue: "Distributed network attack (abbr.).", answer: "DDOS" },
+        3: { r: 4, c: 2, len: 7, clue: "Opposite of encrypt.", answer: "DECRYPT" },
+        4: { r: 7, c: 1, len: 6, clue: "Someone who breaks into systems.", answer: "HACKER" },
       };
 
+      // Down clues
       const downClues = {
-        5: { r:0,c:5,len:8, clue:"Portable USB storage (two words joined).", answer:"PENDRIVE" },
-        6: { r:2,c:7,len:3, clue:"File Transfer Protocol.", answer:"FTP" },
-        7: { r:4,c:8,len:6, clue:"Malware that hides in files (6).", answer:"TROJAN" },
+        5: { r: 0, c: 5, len: 8, clue: "Portable USB storage (two words joined).", answer: "PENDRIVE" },
+        6: { r: 2, c: 7, len: 3, clue: "File Transfer Protocol.", answer: "FTP" },
+        7: { r: 4, c: 8, len: 6, clue: "Malware that hides in files (6).", answer: "TROJAN" },
       };
 
       const ROWS = 10, COLS = 10;
-      const STORAGE_KEY = "image_crossword_fixed_v1";
-
+      const STORAGE_KEY = "responsive_crossword_v2";
       let phaserGame = null;
+      let crosswordSolved = false;
 
-      // Create the Phaser game sized to the #game container.
-      // Tile size is computed from container width, clamped min/max.
+      /* ===============================
+         RESPONSIVE PHASER GAME CREATOR
+         =============================== */
       function createGameForContainer() {
         const container = document.getElementById("game");
         const rect = container.getBoundingClientRect();
-        const containerWidth = Math.max(260, Math.floor(rect.width)); // min width guard
+        const containerWidth = Math.max(260, Math.floor(rect.width));
 
-        // slightly larger inner padding to avoid tiny overflow on some browsers
-        const innerPad = 18 * 2;
+        const innerPad = 18 * 2; // padding safety
+        const maxGridWidth = Math.max(0, containerWidth - innerPad);
+        const tile = Math.floor(maxGridWidth / COLS) || 36;
+        const tileClamped = Math.max(36, Math.min(56, tile)); // clamp tile size
 
-        // compute tile and clamp min to 36 (bigger on phones)
-        const tile = Math.floor((containerWidth - innerPad) / (COLS + 0.6));
-        const tileClamped = Math.max(36, Math.min(64, tile)); // changed min -> 36
-
-        // canvas dims computed to fit grid + padding
-        const canvasWidth = Math.max(320, (tileClamped * COLS) + innerPad);
+        const canvasWidth = tileClamped * COLS + innerPad;
         const canvasHeight = tileClamped * ROWS + innerPad + 24;
 
-        // provide config to scene through global
         window._CROSSWORD_CFG = { tile: tileClamped, canvasWidth, canvasHeight };
 
+        // Destroy any previous Phaser instance
         if (phaserGame) {
-          try { phaserGame.destroy(true); } catch (e) { /* ignore */ }
+          try { phaserGame.destroy(true); } catch (e) {}
           phaserGame = null;
         }
 
+        // Phaser configuration
         const config = {
           type: Phaser.AUTO,
           parent: "game",
@@ -140,242 +242,214 @@
         phaserGame = new Phaser.Game(config);
       }
 
-      // debounce resize and recreate only when width changes noticeably
-      let _lastW = 0, _resizeTimer = null;
-      function scheduleResize() {
-        clearTimeout(_resizeTimer);
-        _resizeTimer = setTimeout(() => {
-          const w = document.getElementById("game").getBoundingClientRect().width;
-          if (Math.abs(w - _lastW) >= 8) { _lastW = w; createGameForContainer(); renderCluesUI(); }
-        }, 120);
-      }
-      window.addEventListener("resize", scheduleResize);
-      window.addEventListener("orientationchange", scheduleResize);
-
-      // Phaser scene (reads tile from window._CROSSWORD_CFG)
+      /* ===============================
+         MAIN PHASER SCENE
+         =============================== */
       class CrosswordScene extends Phaser.Scene {
-        constructor() { super({ key: "CrosswordScene" }); }
+        constructor() {
+          super({ key: "CrosswordScene" });
+        }
 
         create() {
-          const cfg = window._CROSSWORD_CFG || {};
-          const tile = cfg.tile || 48;
-          const pad = Math.max(4, Math.round(tile * 0.125));
-          this.tile = tile;
-          this.pad = pad;
-
-          const canvasW = cfg.canvasWidth || this.game.config.width;
-          const totalGridW = COLS * tile;
-          this.baseX = Math.max(12, Math.round((canvasW - totalGridW) / 2));
+          const { tile, canvasWidth } = window._CROSSWORD_CFG;
+          const pad = 6;
+          this.baseX = (canvasWidth - tile * COLS) / 2;
           this.baseY = 12;
 
-          this.progress = this.loadProgress();
+          // Create cell matrix
           this.cells = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-          this.selected = { r: 0, c: 0 };
           this.direction = "across";
+          this.selected = { r: 0, c: 0 };
 
           for (let r = 0; r < ROWS; r++) {
-            const rowStr = solutionGrid[r] || "#".repeat(COLS);
+            const rowStr = solutionGrid[r];
             for (let c = 0; c < COLS; c++) {
+              const ch = rowStr[c];
+              const isBlocked = ch === "#";
+
+              // Detect if cell is part of any clue; if not, gray it out
+              const partOfAcross = Object.values(acrossClues).some(cl => cl.r === r && c >= cl.c && c < cl.c + cl.len);
+              const partOfDown = Object.values(downClues).some(cl => cl.c === c && r >= cl.r && r < cl.r + cl.len);
+              const isGrayLocked = !isBlocked && !partOfAcross && !partOfDown;
+
               const x = this.baseX + c * tile + tile / 2;
               const y = this.baseY + r * tile + tile / 2;
-              const ch = rowStr[c] || "#";
-              const isBlocked = ch === "#";
-              const bg = isBlocked ? 0x374151 : 0xffffff;
-              const rect = this.add.rectangle(x, y, tile - pad, tile - pad, bg).setStrokeStyle(Math.max(1, Math.round(tile * 0.04)), 0x07121a);
-              if (!isBlocked) rect.setInteractive();
-              const txt = this.add.text(x, y, "", { font: `${Math.max(12, Math.round(tile * 0.42))}px monospace`, color: isBlocked ? "#0b1220" : "#000" }).setOrigin(0.5);
-              const saved = (this.progress && this.progress[r] && this.progress[r][c]) ? this.progress[r][c] : "";
-              if (saved && !isBlocked) txt.setText(saved);
-              this.cells[r][c] = { rect, text: txt, isBlocked, solution: isBlocked ? null : rowStr[c] || "", locked: null };
+              const color = isBlocked || isGrayLocked ? 0x374151 : 0xffffff;
+
+              const rect = this.add.rectangle(x, y, tile - pad, tile - pad, color).setStrokeStyle(2, 0x07121a);
+              const text = this.add.text(x, y, "", { font: `${tile * 0.42}px monospace`, color: "#000" }).setOrigin(0.5);
+
+              this.cells[r][c] = { rect, text, solution: isBlocked ? null : ch, isBlocked, isGrayLocked };
+
+              // Make interactive only if it's not blocked or gray locked
+              if (!isBlocked && !isGrayLocked) rect.setInteractive().on("pointerdown", () => this.selectCell(r, c));
             }
           }
 
-          // mark non-clue active cells as gray-locked from the start
-          this.markCellsNotInAnyClue();
-
-          // attach pointer handlers only to interactive cells
-          for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
-            const cell = this.cells[r][c];
-            if (!cell.isBlocked && cell.locked !== "gray-locked") cell.rect.on("pointerdown", () => this.selectCell(r, c));
-            else if (cell.rect.disableInteractive) cell.rect.disableInteractive();
+          // Select the first active cell
+          for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+              if (!this.cells[r][c].isBlocked && !this.cells[r][c].isGrayLocked) {
+                this.selectCell(r, c);
+                r = ROWS;
+                break;
+              }
+            }
           }
 
-          // pick first interactive cell
-          outer: for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) { if (!this.isCellBlocked(r, c)) { this.selectCell(r, c); break outer; } }
-
-          // keyboard handling (desktop / hardware keyboards)
-          this.input.keyboard.on("keydown", (evt) => {
+          // Keyboard input
+          this.input.keyboard.on("keydown", evt => {
             const k = evt.key;
-            if (k === " ") { evt.preventDefault(); this.toggleDirection(); return; }
-            if (/^[a-zA-Z]$/.test(k)) { this.putLetter(k.toUpperCase()); return; }
-            if (k === "Backspace") { this.backspace(); return; }
-            if (k.startsWith("Arrow")) this.moveSelection(k.replace("Arrow", "").toLowerCase());
+            if (k === " ") return this.toggleDirection();
+            if (/^[a-zA-Z]$/.test(k)) return this.putLetter(k.toUpperCase());
+            if (k.startsWith("Arrow")) return this.move(k.replace("Arrow", "").toLowerCase());
+            if (k === "Backspace") return this.erase();
           });
 
-          renderCluesUI();
-          this.checkPuzzleComplete();
-          window.crosswordScene = this;
+          this.renderClues();
         }
 
-        /* utilities & core functions (kept compact) */
-
-        isCellBlocked(r, c) { const cell = this.cells[r] && this.cells[r][c]; if (!cell) return true; return cell.isBlocked || cell.locked === "gray-locked"; }
-
-        markCellsNotInAnyClue() {
-          const covered = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
-          for (const id in acrossClues) { const cl = acrossClues[id]; for (let i = 0; i < cl.len; i++) { const r = cl.r, c = cl.c + i; if (r >= 0 && r < ROWS && c >= 0 && c < COLS) covered[r][c] = true; } }
-          for (const id in downClues) { const cl = downClues[id]; for (let i = 0; i < cl.len; i++) { const r = cl.r + i, c = cl.c; if (r >= 0 && r < ROWS && c >= 0 && c < COLS) covered[r][c] = true; } }
-
-          const cur = this.loadProgress() || Array.from({ length: ROWS }, () => Array(COLS).fill(""));
-          for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
-            const cell = this.cells[r][c];
-            if (!cell || cell.isBlocked) continue;
-            if (!covered[r][c]) { cell.locked = "gray-locked"; cell.rect.setFillStyle(0x374151); cell.text.setText(""); cur[r][c] = ""; }
-          }
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cur)); } catch (e) { /* ignore */ }
-        }
-
-        selectCell(r, c) { if (this.isCellBlocked(r, c)) return; this.selected = { r, c }; this.highlightActiveWord(); this.updateClueHighlight(); }
-
-        getActiveWordCells() {
-          const { r, c } = this.selected; const out = [];
-          if (this.direction === "across") { let sc = c; while (sc > 0 && !this.isCellBlocked(r, sc - 1)) sc--; let ec = c; while (ec < COLS && !this.isCellBlocked(r, ec)) ec++; for (let cc = sc; cc < ec; cc++) out.push({ r, c: cc, cell: this.cells[r][cc] }); }
-          else { let sr = r; while (sr > 0 && !this.isCellBlocked(sr - 1, c)) sr--; let er = r; while (er < ROWS && !this.isCellBlocked(er, c)) er++; for (let rr = sr; rr < er; rr++) out.push({ r: rr, c, cell: this.cells[rr][c] }); }
-          return out;
-        }
-
-        highlightActiveWord() {
+        selectCell(r, c) {
+          if (this.cells[r][c].isBlocked || this.cells[r][c].isGrayLocked) return;
           this.clearHighlights();
-          const cells = this.getActiveWordCells();
-          cells.forEach(({ r, c }) => { if (this.cells[r][c].locked === null) this.cells[r][c].rect.setFillStyle(0xe8f3ff); });
-          const s = this.selected; if (!this.isCellBlocked(s.r, s.c) && this.cells[s.r][s.c].locked === null) this.cells[s.r][s.c].rect.setFillStyle(0xfffbcc);
+          this.selected = { r, c };
+          this.cells[r][c].rect.setFillStyle(0xfffbcc);
+          this.highlightActiveWord();
         }
 
         clearHighlights() {
-          for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
-            const cell = this.cells[r][c]; if (!cell) continue;
-            if (cell.isBlocked || cell.locked === "gray-locked") cell.rect.setFillStyle(0x374151);
-            else if (cell.locked === "correct") cell.rect.setFillStyle(0xccffcc);
-            else if (cell.locked === "wrong") cell.rect.setFillStyle(0xffcccc);
-            else cell.rect.setFillStyle(0xffffff);
+          for (let r = 0; r < ROWS; r++)
+            for (let c = 0; c < COLS; c++) {
+              const cell = this.cells[r][c];
+              if (!cell.isBlocked && !cell.isGrayLocked) cell.rect.setFillStyle(0xffffff);
+            }
+        }
+
+        toggleDirection() {
+          this.direction = this.direction === "across" ? "down" : "across";
+          this.highlightActiveWord();
+        }
+
+        getWordCells() {
+          const { r, c } = this.selected;
+          const cells = [];
+          if (this.direction === "across") {
+            let sc = c; while (sc > 0 && !this.cells[r][sc - 1].isBlocked) sc--;
+            let ec = c; while (ec < COLS && !this.cells[r][ec].isBlocked) ec++;
+            for (let cc = sc; cc < ec; cc++) cells.push({ r, c: cc });
+          } else {
+            let sr = r; while (sr > 0 && !this.cells[sr - 1][c].isBlocked) sr--;
+            let er = r; while (er < ROWS && !this.cells[er][c].isBlocked) er++;
+            for (let rr = sr; rr < er; rr++) cells.push({ r: rr, c });
+          }
+          return cells;
+        }
+
+        highlightActiveWord() {
+          const cells = this.getWordCells();
+          cells.forEach(({ r, c }) => {
+            const cell = this.cells[r][c];
+            if (!cell.isBlocked && !cell.isGrayLocked) cell.rect.setFillStyle(0xe8f3ff);
+          });
+          const s = this.selected;
+          this.cells[s.r][s.c].rect.setFillStyle(0xfffbcc);
+        }
+
+        putLetter(letter) {
+          const { r, c } = this.selected;
+          const cell = this.cells[r][c];
+          if (cell.isBlocked || cell.isGrayLocked) return;
+          cell.text.setText(letter);
+          this.validateWord();
+          this.moveNext();
+        }
+
+        moveNext() {
+          const { r, c } = this.selected;
+          if (this.direction === "across") {
+            for (let nc = c + 1; nc < COLS; nc++)
+              if (!this.cells[r][nc].isBlocked && !this.cells[r][nc].isGrayLocked) return this.selectCell(r, nc);
+          } else {
+            for (let nr = r + 1; nr < ROWS; nr++)
+              if (!this.cells[nr][c].isBlocked && !this.cells[nr][c].isGrayLocked) return this.selectCell(nr, c);
           }
         }
 
-        updateClueHighlight() {
-          document.querySelectorAll("#acrossList li, #downList li").forEach(li => li.classList && li.classList.remove("active"));
-          const cells = this.getActiveWordCells(); if (!cells.length) return;
-          const start = cells[0];
-          if (this.direction === "across") { for (const id in acrossClues) { const cl = acrossClues[id]; if (cl.r === start.r && cl.c === start.c && cl.len === cells.length) { const el = document.querySelector(`#acrossList li[data-id="${id}"]`); if (el) el.classList.add("active"); break; } } }
-          else { for (const id in downClues) { const cl = downClues[id]; if (cl.r === start.r && cl.c === start.c && cl.len === cells.length) { const el = document.querySelector(`#downList li[data-id="${id}"]`); if (el) el.classList.add("active"); break; } } }
+        erase() {
+          const { r, c } = this.selected;
+          this.cells[r][c].text.setText("");
         }
 
-        toggleDirection() { this.direction = this.direction === "across" ? "down" : "across"; this.highlightActiveWord(); this.updateClueHighlight(); this.showMsg(`Direction: ${this.direction.toUpperCase()}`, 900); }
-
-        putLetter(letter) {
-          const { r, c } = this.selected; if (this.isCellBlocked(r, c)) return;
-          const cell = this.cells[r][c]; const wordCells = this.getActiveWordCells(); this.clearLocksForCells(wordCells);
-          cell.text.setText(letter); this.saveLetter(r, c, letter);
-          if (this.direction === "across") { let nc = c + 1; while (nc < COLS && this.isCellBlocked(r, nc)) nc++; if (nc < COLS) this.selectCell(r, nc); }
-          else { let nr = r + 1; while (nr < ROWS && this.isCellBlocked(nr, c)) nr++; if (nr < ROWS) this.selectCell(nr, c); }
-        }
-
-        backspace() {
-          const { r, c } = this.selected; if (this.isCellBlocked(r, c)) return;
-          const cell = this.cells[r][c]; const wordCells = this.getActiveWordCells(); this.clearLocksForCells(wordCells);
-          if (cell.text.text) { cell.text.setText(""); this.saveLetter(r, c, ""); }
-          else { if (this.direction === "across") { let nc = c - 1; while (nc >= 0 && this.isCellBlocked(r, nc)) nc--; if (nc >= 0) this.selectCell(r, nc); } else { let nr = r - 1; while (nr >= 0 && this.isCellBlocked(nr, c)) nr--; if (nr >= 0) this.selectCell(nr, c); } }
-        }
-
-        clearLocksForCells(cells) { cells.forEach(({ r, c }) => { if (this.cells[r][c].locked !== null && this.cells[r][c].locked !== "gray-locked") { this.cells[r][c].locked = null; this.cells[r][c].rect.setFillStyle(0xffffff); } }); }
-
-        checkActiveWordOnCompletion() {
-          const cells = this.getActiveWordCells(); if (!cells.length) return;
-          let entered = "", allFilled = true; cells.forEach(({ r, c }) => { const ch = (this.cells[r][c].text.text || "").trim(); entered += ch; if (!ch) allFilled = false; });
-          if (!allFilled) { this.clearLocksForCells(cells); this.highlightActiveWord(); return; }
-          const start = cells[0];
-          let clue = null;
-          if (this.direction === "across") clue = Object.values(acrossClues).find(cl => cl.r === start.r && cl.c === start.c && cl.len === cells.length);
-          else clue = Object.values(downClues).find(cl => cl.r === start.r && cl.c === start.c && cl.len === cells.length);
-          if (!clue) return;
-          if (entered.toUpperCase() === clue.answer.toUpperCase()) cells.forEach(({ r, c }) => { this.cells[r][c].locked = "correct"; this.cells[r][c].rect.setFillStyle(0xccffcc); });
-          else cells.forEach(({ r, c }) => { this.cells[r][c].locked = "wrong"; this.cells[r][c].rect.setFillStyle(0xffcccc); });
+        validateWord() {
+          const wordCells = this.getWordCells();
+          const word = wordCells.map(({ r, c }) => this.cells[r][c].text.text || "").join("");
+          const clueList = this.direction === "across" ? acrossClues : downClues;
+          const clue = Object.values(clueList).find(cl =>
+            cl.len === wordCells.length &&
+            ((this.direction === "across" && cl.r === wordCells[0].r && cl.c === wordCells[0].c) ||
+             (this.direction === "down" && cl.c === wordCells[0].c && cl.r === wordCells[0].r))
+          );
+          if (!clue || word.length < clue.len) return;
+          const correct = word.toUpperCase() === clue.answer.toUpperCase();
+          wordCells.forEach(({ r, c }) => {
+            this.cells[r][c].rect.setFillStyle(correct ? 0xccffcc : 0xffcccc);
+          });
           this.checkPuzzleComplete();
         }
 
-        finalizeCompletedPuzzle() {
-          const cur = this.loadProgress() || Array.from({ length: ROWS }, () => Array(COLS).fill(""));
-          for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
-            const cell = this.cells[r][c]; if (!cell || cell.isBlocked) continue;
-            const current = (cell.text.text || "").trim();
-            if (!current) { cell.locked = "gray-locked"; cell.rect.setFillStyle(0x374151); cur[r][c] = ""; if (cell.rect.disableInteractive) cell.rect.disableInteractive(); }
-            else { cell.locked = "correct"; cell.rect.setFillStyle(0xccffcc); cur[r][c] = current; }
-          }
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cur)); } catch (e) { /* ignore */ }
+        move(dir) {
+          let { r, c } = this.selected;
+          if (dir === "left") c = Math.max(0, c - 1);
+          if (dir === "right") c = Math.min(COLS - 1, c + 1);
+          if (dir === "up") r = Math.max(0, r - 1);
+          if (dir === "down") r = Math.min(ROWS - 1, r + 1);
+          if (!this.cells[r][c].isBlocked && !this.cells[r][c].isGrayLocked) this.selectCell(r, c);
         }
 
         checkPuzzleComplete() {
-          let allOk = true;
-          for (const id in acrossClues) {
-            const cl = acrossClues[id]; let entered = "";
-            for (let i = 0; i < cl.len; i++) { const r = cl.r, c = cl.c + i; entered += (this.cells[r][c].text.text || ""); }
-            if (entered.toUpperCase() !== cl.answer.toUpperCase()) { allOk = false; break; }
+          for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+              const cell = this.cells[r][c];
+              if (cell.isBlocked || cell.isGrayLocked) continue;
+              const entered = (cell.text.text || "").toUpperCase();
+              if (entered !== cell.solution.toUpperCase()) return false;
+            }
           }
-          if (allOk) for (const id in downClues) {
-            const cl = downClues[id]; let entered = "";
-            for (let i = 0; i < cl.len; i++) { const r = cl.r + i, c = cl.c; entered += (this.cells[r][c].text.text || ""); }
-            if (entered.toUpperCase() !== cl.answer.toUpperCase()) { allOk = false; break; }
-          }
-          crosswordSolved = allOk;
-          const nextBtn = document.getElementById("nextBtn");
-          if (nextBtn) {
-            if (crosswordSolved) { this.finalizeCompletedPuzzle(); nextBtn.style.display = "inline-block"; nextBtn.classList.add("fade-in"); nextBtn.setAttribute("aria-hidden", "false"); }
-            else { nextBtn.classList.remove("fade-in"); nextBtn.setAttribute("aria-hidden", "true"); nextBtn.style.display = "none"; }
-          }
-          return allOk;
+          document.getElementById("nextBtn").style.display = "block";
+          crosswordSolved = true;
+          return true;
         }
 
-        showMsg(text, ms = 1400) { const el = document.getElementById("msg"); el.textContent = text; setTimeout(() => { if (el.textContent === text) el.textContent = ""; }, ms); }
-
-        saveLetter(r, c, ch) { const cur = this.loadProgress() || Array.from({ length: ROWS }, () => Array(COLS).fill("")); cur[r][c] = ch; try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cur)); } catch (e) { /* ignore */ } this.checkActiveWordOnCompletion(); }
-
-        loadProgress() { try { const raw = localStorage.getItem(STORAGE_KEY); if (!raw) return null; return JSON.parse(raw); } catch (e) { return null; } }
-      } // end scene
-
-      // render clues into UI and attach handlers (external to Phaser)
-      function renderCluesUI() {
-        const aList = document.getElementById("acrossList"), dList = document.getElementById("downList");
-        aList.innerHTML = ""; dList.innerHTML = "";
-        Object.keys(acrossClues).sort((a,b)=>a-b).forEach(id => {
-          const cl = acrossClues[id];
-          const li = document.createElement("li");
-          li.dataset.id = id;
-          li.textContent = `${id}. ${cl.clue} (${cl.len})`;
-          li.addEventListener("click", () => { if (window.crosswordScene) { window.crosswordScene.direction = "across"; window.crosswordScene.selectCell(cl.r, cl.c); } });
-          aList.appendChild(li);
-        });
-        Object.keys(downClues).sort((a,b)=>a-b).forEach(id => {
-          const cl = downClues[id];
-          const li = document.createElement("li");
-          li.dataset.id = id;
-          li.textContent = `${id}. ${cl.clue} (${cl.len})`;
-          li.addEventListener("click", () => { if (window.crosswordScene) { window.crosswordScene.direction = "down"; window.crosswordScene.selectCell(cl.r, cl.c); } });
-          dList.appendChild(li);
-        });
+        renderClues() {
+          const across = document.getElementById("acrossList");
+          const down = document.getElementById("downList");
+          across.innerHTML = "";
+          down.innerHTML = "";
+          Object.entries(acrossClues).forEach(([id, cl]) => {
+            const li = document.createElement("li");
+            li.textContent = `${id}. ${cl.clue} (${cl.len})`;
+            li.onclick = () => { this.direction = "across"; this.selectCell(cl.r, cl.c); };
+            across.appendChild(li);
+          });
+          Object.entries(downClues).forEach(([id, cl]) => {
+            const li = document.createElement("li");
+            li.textContent = `${id}. ${cl.clue} (${cl.len})`;
+            li.onclick = () => { this.direction = "down"; this.selectCell(cl.r, cl.c); };
+            down.appendChild(li);
+          });
+        }
       }
 
-      // boot & initial responsive creation
-      createGameForContainer();
-      _lastW = document.getElementById("game").getBoundingClientRect().width;
-
+      /* ===============================
+         INITIALIZATION
+         =============================== */
       window.addEventListener("load", () => {
-        document.getElementById("toggleDir").addEventListener("click", () => { if (window.crosswordScene) window.crosswordScene.toggleDirection(); });
-        const nextBtn = document.getElementById("nextBtn");
-        if (nextBtn) nextBtn.addEventListener("click", () => { alert("Puzzle solved! Continue..."); });
-        renderCluesUI();
+        createGameForContainer();
+        window.addEventListener("resize", () => createGameForContainer());
+        document.getElementById("toggleDir").onclick = () =>
+          window.crosswordScene && window.crosswordScene.toggleDirection();
+        document.getElementById("nextBtn").onclick = () => alert("Puzzle solved!");
       });
-
-      // handle visibility change (e.g. when switching apps/rotating)
-      window.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") scheduleResize(); });
     </script>
   </body>
 </html>
